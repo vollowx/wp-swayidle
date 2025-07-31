@@ -2,8 +2,8 @@
 
 A program that manages swayidle depending on audio output.
 
-If any active stream is detected, swayidle will be kill, if not, swayidle will
-be re-spawned.
+If any active stream is detected, swayidle will be stopped, if not, swayidle
+will be re-spawned.
 
 ## Dependencies
 
