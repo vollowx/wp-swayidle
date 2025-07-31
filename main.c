@@ -101,8 +101,8 @@ static gboolean on_signal_int(gpointer data) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "Usage: %s <interval> -- <swayidle args>...\n",
+  if (argc < 2) {
+    fprintf(stderr, "Usage: %s <interval> [-- <swayidle args>...]\n",
             argv[0]);
     return 1;
   }

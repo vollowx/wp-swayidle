@@ -30,7 +30,7 @@ will be re-spawned.
 
 Run wp-swayidle in the background:
 
-    wp-swayidle <interval> -- <swayidle args>...
+    wp-swayidle <interval> [-- <swayidle args>...]
 
 For example in `~/.config/sway/config`:
 
