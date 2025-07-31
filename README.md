@@ -37,4 +37,4 @@ For example in `~/.config/sway/config`:
     exec wp-swayidle 3 -- -w timeout 300 'swaylock' \
                              timeout 600 'swaymsg "output * power off"' \
                              resume 'swaymsg "output * power on"' \
-                             before-sleep 'swaylock' &
+                             before-sleep 'swaylock'
