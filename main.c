@@ -1,8 +1,12 @@
 #include "glib-object.h"
+#include <errno.h>
 #include <gio/gio.h>
 #include <glib-unix.h>
 #include <pipewire/pipewire.h>
 #include <stdio.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <wp/wp.h>
 
 static struct {
@@ -13,7 +17,65 @@ static struct {
   gint interval;
   gchar **swayidle_argv;
   GSubprocess *swayidle_proc;
+  gint lock_fd;
 } g;
+
+static gboolean check_wayland_display(void) {
+  const gchar *wayland_display = g_getenv("WAYLAND_DISPLAY");
+  if (!wayland_display || strlen(wayland_display) == 0) {
+    return FALSE;
+  }
+
+  // Check if the Wayland socket actually exists and is accessible
+  const gchar *runtime_dir = g_getenv("XDG_RUNTIME_DIR");
+  if (!runtime_dir) {
+    return FALSE;
+  }
+
+  gchar *socket_path = g_strdup_printf("%s/%s", runtime_dir, wayland_display);
+  struct stat st;
+  gboolean exists = (stat(socket_path, &st) == 0) && S_ISSOCK(st.st_mode);
+  g_free(socket_path);
+
+  return exists;
+}
+
+static gboolean acquire_lock(void) {
+  const gchar *runtime_dir = g_getenv("XDG_RUNTIME_DIR");
+  if (!runtime_dir) {
+    runtime_dir = "/tmp";
+  }
+
+  gchar *lock_path = g_strdup_printf("%s/wp-swaylock.lock", runtime_dir);
+  g.lock_fd = open(lock_path, O_CREAT | O_RDWR, 0644);
+  g_free(lock_path);
+
+  if (g.lock_fd == -1) {
+    g_warning("Failed to create lock file: %s", strerror(errno));
+    return FALSE;
+  }
+
+  if (flock(g.lock_fd, LOCK_EX | LOCK_NB) == -1) {
+    if (errno == EWOULDBLOCK) {
+      fprintf(stderr, "Another instance of wp-swaylock is already running\n");
+      close(g.lock_fd);
+      return FALSE;
+    }
+    g_warning("Failed to acquire lock: %s", strerror(errno));
+    close(g.lock_fd);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static void release_lock(void) {
+  if (g.lock_fd != -1) {
+    flock(g.lock_fd, LOCK_UN);
+    close(g.lock_fd);
+    g.lock_fd = -1;
+  }
+}
 
 static void check_node(const GValue *item, gpointer data) {
   WpPipewireObject *obj = g_value_get_object(item);
@@ -81,9 +143,15 @@ static void manage_swayidle(void) {
 }
 
 static gboolean periodic_check(gpointer data) {
+  if (!check_wayland_display()) {
+    g_print("Wayland socket no longer available, exiting...\n");
+    g_main_loop_quit(g.loop);
+    return G_SOURCE_REMOVE;
+  }
+
   check_streams();
   manage_swayidle();
-  return TRUE;
+  return G_SOURCE_CONTINUE;
 }
 
 static void on_plugin_loaded(WpCore *core, GAsyncResult *res, gpointer data) {
@@ -102,12 +170,23 @@ static gboolean on_signal_int(gpointer data) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    fprintf(stderr, "Usage: %s <interval> [-- <swayidle args>...]\n",
-            argv[0]);
+    fprintf(stderr, "Usage: wp-swaylock <interval> [-- <swayidle args>...]\n");
+    return 1;
+  }
+
+  if (!check_wayland_display()) {
+    fprintf(stderr,
+            "Wayland socket not found or WAYLAND_DISPLAY not set, check if "
+            "your compositor has set environment variables correctly\n");
+    return 1;
+  }
+
+  if (!acquire_lock()) {
     return 1;
   }
 
   g.interval = atoi(argv[1]);
+  g.lock_fd = -1;
 
   // Parse swayidle args
   int start = -1;
@@ -147,6 +226,7 @@ int main(int argc, char **argv) {
 
   if (!wp_core_connect(g.core)) {
     fprintf(stderr, "Could not connect to PipeWire\n");
+    release_lock();
     return 2;
   }
 
@@ -164,6 +244,8 @@ int main(int argc, char **argv) {
   g_clear_object(&g.om);
   g_clear_object(&g.core);
   g_main_loop_unref(g.loop);
+
+  release_lock();
 
   return 0;
 }
