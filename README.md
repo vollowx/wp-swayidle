@@ -40,7 +40,7 @@ occasions are covered.
 
 For example in `~/.config/sway/config`:
 
-    exec swayidle -w before-sleep 'swaylock' \
-                     resume 'swaymsg "output * power on"'
+    exec swayidle -w before-sleep 'swaylock'
     exec wp-swayidle 3 -- timeout 300 'swaylock' \
-                          timeout 600 'swaymsg "output * power off"'
+                          timeout 600 'swaymsg "output * power off"' \
+                          resume 'swaymsg "output * power on"'
