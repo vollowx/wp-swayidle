@@ -1,4 +1,4 @@
-project('swayidled', 'c')
+project('wp-swayidle', 'c')
 wireplumber = dependency('wireplumber-0.5')
 executable('wp-swayidle',
   'main.c',
