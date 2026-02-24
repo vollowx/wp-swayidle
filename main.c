@@ -46,7 +46,7 @@ static gboolean acquire_lock(void) {
     runtime_dir = "/tmp";
   }
 
-  gchar *lock_path = g_strdup_printf("%s/wp-swaylock.lock", runtime_dir);
+  gchar *lock_path = g_strdup_printf("%s/wp-swayidle.lock", runtime_dir);
   g.lock_fd = open(lock_path, O_CREAT | O_RDWR, 0644);
   g_free(lock_path);
 
@@ -57,7 +57,7 @@ static gboolean acquire_lock(void) {
 
   if (flock(g.lock_fd, LOCK_EX | LOCK_NB) == -1) {
     if (errno == EWOULDBLOCK) {
-      fprintf(stderr, "Another instance of wp-swaylock is already running\n");
+      fprintf(stderr, "Another instance of wp-swayidle is already running\n");
       close(g.lock_fd);
       return FALSE;
     }
@@ -170,7 +170,7 @@ static gboolean on_signal_int(gpointer data) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    fprintf(stderr, "Usage: wp-swaylock <interval> [-- <swayidle args>...]\n");
+    fprintf(stderr, "Usage: wp-swayidle <interval> [-- <swayidle args>...]\n");
     return 1;
   }
 
