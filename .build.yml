@@ -1,0 +1,25 @@
+image: archlinux
+packages:
+    - meson
+    - ninja
+    - pipewire
+    - wireplumber
+sources:
+    - https://git.sr.ht/~lucaz/wp-swayidle
+triggers:
+    - action: email
+      condition: failure
+      to: "<vollowx@outlook.com>"
+tasks:
+    - setup: |
+             cd wp-swayidle
+             meson setup build
+    - build: |
+             cd wp-swayidle
+             ninja -C build
+submitter:
+    git.sr.ht:
+        enabled: true
+        allow-refs:
+            - refs/heads/main
+            - "refs/tags/*"
